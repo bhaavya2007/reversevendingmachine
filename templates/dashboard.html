@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>EcoRewards</title>
+  <style>
+    body {font-family: Arial; background: linear-gradient(135deg,#c3cfe2,#e2ebf0); margin:0;}
+    .container {display:flex; justify-content:center; align-items:center; height:100vh;}
+    .card {background:white; padding:30px; border-radius:20px; width:340px; text-align:center;}
+    h1 {font-size:42px; color:#4CAF50;}
+    input {width:90%; padding:12px; margin-top:15px;}
+    button {width:95%; padding:12px; margin-top:12px; background:#4CAF50; color:white; border:none;}
+    .secondary-btn {background:#007BFF;}
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <div class="card">
+
+    <h3>EcoRewards</h3>
+    <h1>{{points}}</h1>
+
+    {% if message %}
+      <p>{{message}}</p>
+    {% endif %}
+
+    <p>Enter code from dustbin</p>
+
+    <form method="post">
+      <input name="code" placeholder="Enter Code">
+      <button>Redeem</button>
+    </form>
+
+    <a href="/rewards"><button class="secondary-btn">Rewards</button></a>
+
+    <a href="/logout">Logout</a>
+
+  </div>
+</div>
+
+<!-- Popup -->
+<div id="popup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center;">
+  <div style="background:white; padding:30px; border-radius:15px; text-align:center;">
+    <h2>🎉 Coupon Unlocked</h2>
+    <h1 id="code"></h1>
+    <button onclick="closePopup()">Close</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<script>
+const coupon = "{{ coupon if coupon else '' }}";
+
+if (coupon !== "") {
+  document.getElementById("popup").style.display = "flex";
+  document.getElementById("code").innerText = coupon;
+
+  confetti({ particleCount:150, spread:80, origin:{y:0.6} });
+}
+
+function closePopup(){
+  document.getElementById("popup").style.display = "none";
+}
+</script>
+
+</body>
+</html>

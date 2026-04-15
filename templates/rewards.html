@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Rewards</title>
+  <style>
+    body {font-family: Arial; background:#f4f6f8; text-align:center;}
+    .card {background:white; padding:20px; margin:20px auto; width:300px; border-radius:10px;}
+    button {padding:10px; background:green; color:white; border:none;}
+  </style>
+</head>
+<body>
+
+<h2>Your Points: {{points}}</h2>
+
+{% for r in rewards %}
+<div class="card">
+  <h3>{{r[1]}}</h3>
+  <p>Cost: {{r[2]}}</p>
+  <a href="/redeem_reward/{{r[0]}}">
+    <button>Redeem</button>
+  </a>
+</div>
+{% endfor %}
+
+<a href="/dashboard">Back</a>
+
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Panel</title>
+</head>
+<body>
+
+<h2>Admin Panel</h2>
+
+<h3>Add Reward</h3>
+<form method="post" action="/add_reward">
+  <input name="name" placeholder="Reward Name">
+  <input name="cost" placeholder="Cost">
+  <button>Add</button>
+</form>
+
+<h3>Add Coupon</h3>
+<form method="post" action="/add_coupon">
+  <input name="reward_id" placeholder="Reward ID">
+  <input name="code" placeholder="Coupon Code">
+  <button>Add Coupon</button>
+</form>
+
+<h3>Rewards</h3>
+{% for r in rewards %}
+  <p>ID: {{r[0]}} | {{r[1]}} | Cost: {{r[2]}}</p>
+{% endfor %}
+
+</body>
+</html>
