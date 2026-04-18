@@ -15,10 +15,6 @@
       flex-direction: column;
     }
 
-    h2 {
-      margin-bottom: 20px;
-    }
-
     .screen {
       border: 4px solid #00ff00;
       padding: 30px;
@@ -41,8 +37,10 @@
       border-radius: 5px;
     }
 
-    button:hover {
-      background: #00cc00;
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #aaa;
     }
   </style>
 </head>
@@ -55,20 +53,29 @@
 
 <button onclick="trigger()">Simulate Garbage Throw</button>
 
+<div class="status" id="status">Waiting...</div>
+
 <script>
 function trigger(){
   fetch('/trigger_code')
-    .then(res => res.text())
+    .then(res => res.json())
     .then(data => {
-      document.getElementById("code").innerText = data;
+      console.log("DATA:", data);
+      document.getElementById("code").innerText = data.code;
+      document.getElementById("status").innerText = "Points: " + data.points;
+    })
+    .catch(err => {
+      console.log(err);
+      document.getElementById("status").innerText = "Error";
     });
 }
 
-// auto-refresh display every 2 sec
+// refresh display every 2 sec
 setInterval(() => {
   fetch('/get_latest_code')
     .then(res => res.text())
     .then(data => {
+      if (!data || data.includes("<")) return;
       document.getElementById("code").innerText = data;
     });
 }, 2000);
