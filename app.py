@@ -6,10 +6,12 @@ import string
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-DB = "database_simple.db"
+DB = "database_final.db"
 
 latest_code = "NO CODE"
 
+
+# ---------------- DATABASE ----------------
 
 def get_conn():
     return sqlite3.connect(DB)
@@ -40,14 +42,24 @@ def init_db():
     conn.close()
 
 
+# 🔥 IMPORTANT: runs on Render also
 init_db()
 
+
+# ---------------- ROUTES ----------------
 
 @app.route('/')
 def home():
     return redirect('/login')
 
 
+# 🔥 THIS FIXES YOUR MAIN ISSUE
+@app.route('/dustbin')
+def dustbin():
+    return render_template('dustbin.html')
+
+
+# REGISTER
 @app.route('/register', methods=['GET','POST'])
 def register():
     if request.method == 'POST':
@@ -69,6 +81,7 @@ def register():
     return render_template('register.html')
 
 
+# LOGIN
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
@@ -90,6 +103,7 @@ def login():
     return render_template('login.html')
 
 
+# DASHBOARD
 @app.route('/dashboard', methods=['GET','POST'])
 def dashboard():
     if 'user' not in session:
@@ -123,7 +137,7 @@ def dashboard():
     return render_template('dashboard.html', points=points, message=message)
 
 
-# 🔥 SIMPLE GENERATE
+# 🔥 GENERATE CODE (USED BY DUSTBIN)
 @app.route('/trigger_code')
 def trigger_code():
     global latest_code
@@ -142,11 +156,14 @@ def trigger_code():
     return latest_code
 
 
+# LOGOUT
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect('/login')
 
 
+# ---------------- RUN ----------------
+
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
