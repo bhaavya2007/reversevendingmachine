@@ -15,13 +15,17 @@
       flex-direction: column;
     }
 
+    h2 {
+      margin-bottom: 20px;
+    }
+
     .screen {
       border: 4px solid #00ff00;
       padding: 30px;
       font-size: 36px;
       letter-spacing: 6px;
       margin-bottom: 20px;
-      min-width: 300px;
+      min-width: 320px;
       text-align: center;
       box-shadow: 0 0 20px #00ff00;
     }
@@ -34,6 +38,17 @@
       border: none;
       color: black;
       font-weight: bold;
+      border-radius: 6px;
+    }
+
+    button:hover {
+      background: #00cc00;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #aaa;
     }
   </style>
 </head>
@@ -46,12 +61,33 @@
 
 <button onclick="generate()">Simulate Garbage Throw</button>
 
+<div class="status" id="status">Waiting...</div>
+
 <script>
+/* 🔥 IMPORTANT: HARDCODE YOUR DEPLOYED URL */
+const BASE = "https://reversevendingmachine.onrender.com";
+
 function generate(){
-  fetch('/trigger_code')
+  fetch(BASE + "/trigger_code")
     .then(res => res.text())
     .then(data => {
+      console.log("SERVER RESPONSE:", data);
+
+      // ❌ if HTML is returned instead of code
+      if (data.includes("<!doctype") || data.includes("<html")) {
+        document.getElementById("code").innerText = "ERROR";
+        document.getElementById("status").innerText = "❌ Backend not hit";
+        return;
+      }
+
+      // ✅ correct response
       document.getElementById("code").innerText = data;
+      document.getElementById("status").innerText = "✅ Code generated";
+    })
+    .catch(err => {
+      console.log(err);
+      document.getElementById("code").innerText = "ERROR";
+      document.getElementById("status").innerText = "❌ Server error";
     });
 }
 </script>
