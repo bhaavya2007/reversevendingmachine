@@ -1,165 +1,173 @@
-from flask import Flask, render_template, request, redirect, session, jsonify
+from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import random
 import string
-import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "secret123")
-
+app.secret_key = "secret123"
 DB = "database.db"
 
-# -----------------------------
-# GLOBAL ACTIVE CODE SYSTEM
-# -----------------------------
-current_code = None
-current_points = 10
+ADMIN_USER = "admin"
+ADMIN_PASS = "admin123"
 
-# -----------------------------
-# DATABASE INIT
-# -----------------------------
+
 def init_db():
     conn = sqlite3.connect(DB)
     c = conn.cursor()
 
     c.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        username TEXT PRIMARY KEY,
-        password TEXT,
-        points INTEGER DEFAULT 0
-    )
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            points INTEGER DEFAULT 0
+        )
     """)
 
     c.execute("""
-    CREATE TABLE IF NOT EXISTS rewards (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        cost INTEGER
-    )
+        CREATE TABLE IF NOT EXISTS codes (
+            code TEXT PRIMARY KEY,
+            points INTEGER,
+            used INTEGER DEFAULT 0
+        )
     """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS rewards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            cost INTEGER
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS coupons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reward_id INTEGER,
+            coupon_code TEXT,
+            used INTEGER DEFAULT 0
+        )
+    """)
+
+    # Default rewards + coupons
+    c.execute("SELECT COUNT(*) FROM rewards")
+    if c.fetchone()[0] == 0:
+        c.execute("INSERT INTO rewards (name, cost) VALUES ('Free Coffee', 50)")
+        c.execute("INSERT INTO rewards (name, cost) VALUES ('Discount Coupon', 100)")
+
+        c.execute("INSERT INTO coupons (reward_id, coupon_code) VALUES (1, 'COFFEE50')")
+        c.execute("INSERT INTO coupons (reward_id, coupon_code) VALUES (2, 'SAVE100')")
 
     conn.commit()
     conn.close()
 
-init_db()
 
-# -----------------------------
-# HOME
-# -----------------------------
 @app.route('/')
 def home():
-    return render_template("login.html")
+    return redirect('/login')
 
-# -----------------------------
-# REGISTER
-# -----------------------------
-@app.route('/register', methods=['POST'])
+
+# ✅ REGISTER (FIXED)
+@app.route('/register', methods=['GET', 'POST'])
 def register():
-    username = request.form['username']
-    password = request.form['password']
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
 
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
+        if not username or not password:
+            return "Missing data"
 
-    try:
-        c.execute("INSERT INTO users VALUES (?, ?, 0)", (username, password))
-        conn.commit()
-    except:
-        pass
+        conn = sqlite3.connect(DB)
+        c = conn.cursor()
 
-    conn.close()
-    return redirect('/')
-
-# -----------------------------
-# LOGIN
-# -----------------------------
-@app.route('/login', methods=['POST'])
-def login():
-    username = request.form['username']
-    password = request.form['password']
-
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-
-    c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
-    user = c.fetchone()
-
-    conn.close()
-
-    if user:
-        session['username'] = username
-        return redirect('/dashboard')
-    return "Login Failed"
-
-# -----------------------------
-# DASHBOARD
-# -----------------------------
-@app.route('/dashboard')
-def dashboard():
-    if 'username' not in session:
-        return redirect('/')
-
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-
-    c.execute("SELECT points FROM users WHERE username=?", (session['username'],))
-    result = c.fetchone()
-
-    points = result[0] if result else 0
-
-    conn.close()
-
-    return render_template("dashboard.html", points=points)
-
-# -----------------------------
-# GENERATE CODE (FOR ESP32)
-# -----------------------------
-@app.route('/generate_code')
-def generate_code():
-    global current_code, current_points
-
-    if current_code is None:
-        current_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        current_points = random.choice([5, 10, 15])
-
-    return f"{current_code} ({current_points} pts)"
-
-# -----------------------------
-# REDEEM CODE
-# -----------------------------
-@app.route('/redeem', methods=['POST'])
-def redeem():
-    if 'username' not in session:
-        return redirect('/')
-
-    global current_code, current_points
-
-    entered_code = request.form['code']
-
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-
-    if entered_code == current_code:
-        c.execute("UPDATE users SET points = points + ? WHERE username = ?", 
-                  (current_points, session['username']))
-        conn.commit()
-
-        # RESET CODE AFTER USE
-        current_code = None
+        try:
+            c.execute("INSERT INTO users (username,password) VALUES (?,?)",
+                      (username, password))
+            conn.commit()
+        except:
+            conn.close()
+            return "User already exists"
 
         conn.close()
-        return "SUCCESS"
+        return redirect('/login')
+
+    return render_template('register.html')
+
+
+# LOGIN
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        u = request.form.get('username')
+        p = request.form.get('password')
+
+        if u == ADMIN_USER and p == ADMIN_PASS:
+            session.clear()
+            session['admin'] = True
+            return redirect('/admin')
+
+        conn = sqlite3.connect(DB)
+        c = conn.cursor()
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+        user = c.fetchone()
+        conn.close()
+
+        if user:
+            session.clear()
+            session['user'] = u
+            return redirect('/dashboard')
+
+        return "Invalid credentials"
+
+    return render_template('login.html')
+
+
+@app.route('/dashboard', methods=['GET', 'POST'])
+def dashboard():
+    if 'user' not in session:
+        return redirect('/login')
+
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+
+    message = ""
+    success = False
+    coupon = request.args.get('coupon')
+
+    if request.method == 'POST':
+        code = request.form.get('code')
+
+        c.execute("SELECT * FROM codes WHERE code=? AND used=0", (code,))
+        r = c.fetchone()
+
+        if r:
+            c.execute("UPDATE codes SET used=1 WHERE code=?", (code,))
+            c.execute("UPDATE users SET points = points + ? WHERE username=?",
+                      (r[1], session['user']))
+            conn.commit()
+            message = "Code applied!"
+            success = True
+        else:
+            message = "Invalid code"
+
+    c.execute("SELECT points FROM users WHERE username=?", (session['user'],))
+    points = c.fetchone()[0]
 
     conn.close()
-    return "INVALID CODE"
 
-# -----------------------------
-# REWARDS PAGE
-# -----------------------------
+    return render_template(
+        'dashboard.html',
+        points=points,
+        message=message,
+        success=success,
+        coupon=coupon
+    )
+
+
 @app.route('/rewards')
 def rewards():
-    if 'username' not in session:
-        return redirect('/')
+    if 'user' not in session:
+        return redirect('/login')
 
     conn = sqlite3.connect(DB)
     c = conn.cursor()
@@ -167,72 +175,67 @@ def rewards():
     c.execute("SELECT * FROM rewards")
     rewards = c.fetchall()
 
-    c.execute("SELECT points FROM users WHERE username=?", (session['username'],))
+    c.execute("SELECT points FROM users WHERE username=?", (session['user'],))
     points = c.fetchone()[0]
 
     conn.close()
 
-    return render_template("rewards.html", rewards=rewards, points=points)
+    return render_template('rewards.html', rewards=rewards, points=points)
 
-# -----------------------------
-# REDEEM REWARD
-# -----------------------------
+
 @app.route('/redeem_reward/<int:id>')
 def redeem_reward(id):
-    if 'username' not in session:
-        return redirect('/')
+    if 'user' not in session:
+        return redirect('/login')
 
     conn = sqlite3.connect(DB)
     c = conn.cursor()
 
-    c.execute("SELECT cost, name FROM rewards WHERE id=?", (id,))
-    reward = c.fetchone()
+    c.execute("SELECT cost FROM rewards WHERE id=?", (id,))
+    cost = c.fetchone()[0]
 
-    c.execute("SELECT points FROM users WHERE username=?", (session['username'],))
-    user_points = c.fetchone()[0]
+    c.execute("SELECT points FROM users WHERE username=?", (session['user'],))
+    points = c.fetchone()[0]
 
-    if reward and user_points >= reward[0]:
-        new_points = user_points - reward[0]
+    if points < cost:
+        return "Not enough points"
 
-        c.execute("UPDATE users SET points=? WHERE username=?", (new_points, session['username']))
-        conn.commit()
+    c.execute("SELECT id, coupon_code FROM coupons WHERE reward_id=? AND used=0 LIMIT 1", (id,))
+    coupon = c.fetchone()
 
-        coupon = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    if not coupon:
+        return "No coupons left"
 
-        conn.close()
-        return jsonify({"status": "success", "coupon": coupon})
+    c.execute("UPDATE coupons SET used=1 WHERE id=?", (coupon[0],))
+    c.execute("UPDATE users SET points = points - ? WHERE username=?",
+              (cost, session['user']))
 
+    conn.commit()
     conn.close()
-    return jsonify({"status": "fail"})
 
-# -----------------------------
-# ADMIN ADD REWARD
-# -----------------------------
-@app.route('/admin', methods=['GET', 'POST'])
-def admin():
-    if request.method == 'POST':
-        name = request.form['name']
-        cost = request.form['cost']
+    return redirect(f"/dashboard?coupon={coupon[1]}")
 
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
 
-        c.execute("INSERT INTO rewards (name, cost) VALUES (?, ?)", (name, cost))
-        conn.commit()
-        conn.close()
+@app.route('/generate_code')
+def generate_code():
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    points = random.randint(5, 20)
 
-    return render_template("admin.html")
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("INSERT INTO codes VALUES (?, ?, 0)", (code, points))
+    conn.commit()
+    conn.close()
 
-# -----------------------------
-# LOGOUT
-# -----------------------------
+    return f"{code} ({points} pts)"
+
+
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/')
+    return redirect('/login')
 
-# -----------------------------
-# RUN
-# -----------------------------
-if __name__ == "__main__":
+
+if __name__ == '__main__':
+    init_db()
     app.run()
