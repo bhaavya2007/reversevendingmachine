@@ -2,17 +2,14 @@ from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import random
 import string
-import time
 
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-DB = "database_v2.db"
+DB = "database_v3.db"
 
-# 🔥 STORE LAST GENERATED CODE
-last_code = None
-last_time = 0
-last_points = 0
+# 🔥 stores last generated code (for display)
+latest_code = "NO CODE"
 
 
 # ---------------- DATABASE ----------------
@@ -72,7 +69,7 @@ def init_db():
     conn.close()
 
 
-# 🔥 IMPORTANT (runs on Render too)
+# run DB setup on start (important for Render)
 init_db()
 
 
@@ -151,7 +148,7 @@ def dashboard():
             c.execute("UPDATE users SET points = points + ? WHERE username=?",
                       (r[1], session['user']))
             conn.commit()
-            message = "Code applied successfully!"
+            message = "Code applied!"
             success = True
         else:
             message = "Invalid or already used code"
@@ -190,7 +187,7 @@ def rewards():
     return render_template('rewards.html', rewards=rewards, points=points)
 
 
-# REDEEM REWARD
+# REDEEM
 @app.route('/redeem_reward/<int:id>')
 def redeem_reward(id):
     if 'user' not in session:
@@ -224,18 +221,11 @@ def redeem_reward(id):
     return redirect(f"/dashboard?coupon={coupon[1]}")
 
 
-# 🔥 FIXED GENERATE CODE (STABLE FOR 30 SEC)
-@app.route('/generate_code')
-def generate_code():
-    global last_code, last_time, last_points
+# 🔥 SENSOR TRIGGER (this generates new code)
+@app.route('/trigger_code')
+def trigger_code():
+    global latest_code
 
-    current_time = time.time()
-
-    # reuse same code for 30 seconds
-    if last_code and (current_time - last_time < 30):
-        return f"{last_code} ({last_points} pts)"
-
-    # generate new code
     code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     points = random.randint(5, 20)
 
@@ -245,11 +235,15 @@ def generate_code():
     conn.commit()
     conn.close()
 
-    last_code = code
-    last_time = current_time
-    last_points = points
+    latest_code = f"{code} ({points} pts)"
 
-    return f"{code} ({points} pts)"
+    return latest_code
+
+
+# 🔥 DISPLAY FETCH (does NOT create new code)
+@app.route('/get_latest_code')
+def get_latest_code():
+    return latest_code
 
 
 # LOGOUT
@@ -259,6 +253,6 @@ def logout():
     return redirect('/login')
 
 
-# RUN
+# ---------------- RUN ----------------
 if __name__ == '__main__':
     app.run()
