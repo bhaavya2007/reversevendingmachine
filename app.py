@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, jsonify
+from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import random
 import string
@@ -6,13 +6,10 @@ import string
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-DB = "database_v4.db"
+DB = "database_simple.db"
 
-latest_code = None
-latest_points = 0
+latest_code = "NO CODE"
 
-
-# ---------------- DATABASE ----------------
 
 def get_conn():
     return sqlite3.connect(DB)
@@ -46,8 +43,6 @@ def init_db():
 init_db()
 
 
-# ---------------- ROUTES ----------------
-
 @app.route('/')
 def home():
     return redirect('/login')
@@ -68,7 +63,7 @@ def register():
 
             return redirect('/login')
 
-        except sqlite3.IntegrityError:
+        except:
             return "User already exists"
 
     return render_template('register.html')
@@ -118,7 +113,7 @@ def dashboard():
             conn.commit()
             message = "Code applied!"
         else:
-            message = "Invalid or used code"
+            message = "Invalid code"
 
     c.execute("SELECT points FROM users WHERE username=?", (session['user'],))
     points = c.fetchone()[0]
@@ -128,10 +123,10 @@ def dashboard():
     return render_template('dashboard.html', points=points, message=message)
 
 
-# 🔥 SENSOR TRIGGER (generates new code)
+# 🔥 SIMPLE GENERATE
 @app.route('/trigger_code')
 def trigger_code():
-    global latest_code, latest_points
+    global latest_code
 
     code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     points = random.randint(5, 20)
@@ -142,19 +137,9 @@ def trigger_code():
     conn.commit()
     conn.close()
 
-    latest_code = code
-    latest_points = points
+    latest_code = f"{code} ({points} pts)"
 
-    return jsonify({
-        "code": code,
-        "points": points
-    })
-
-
-# 🔥 DISPLAY ONLY (no generation)
-@app.route('/get_latest_code')
-def get_latest_code():
-    return latest_code if latest_code else "NO CODE"
+    return latest_code
 
 
 @app.route('/logout')
@@ -163,6 +148,5 @@ def logout():
     return redirect('/login')
 
 
-# ---------------- RUN ----------------
 if __name__ == '__main__':
     app.run()

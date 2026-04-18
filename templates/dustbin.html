@@ -34,13 +34,6 @@
       border: none;
       color: black;
       font-weight: bold;
-      border-radius: 5px;
-    }
-
-    .status {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #aaa;
     }
   </style>
 </head>
@@ -51,34 +44,16 @@
 
 <div class="screen" id="code">NO CODE</div>
 
-<button onclick="trigger()">Simulate Garbage Throw</button>
-
-<div class="status" id="status">Waiting...</div>
+<button onclick="generate()">Simulate Garbage Throw</button>
 
 <script>
-function trigger(){
+function generate(){
   fetch('/trigger_code')
-    .then(res => res.json())
-    .then(data => {
-      console.log("DATA:", data);
-      document.getElementById("code").innerText = data.code;
-      document.getElementById("status").innerText = "Points: " + data.points;
-    })
-    .catch(err => {
-      console.log(err);
-      document.getElementById("status").innerText = "Error";
-    });
-}
-
-// refresh display every 2 sec
-setInterval(() => {
-  fetch('/get_latest_code')
     .then(res => res.text())
     .then(data => {
-      if (!data || data.includes("<")) return;
       document.getElementById("code").innerText = data;
     });
-}, 2000);
+}
 </script>
 
 </body>
