@@ -1,13 +1,13 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template
 import sqlite3
 import random
 import string
 
 app = Flask(__name__)
-app.secret_key = "secret123"
 
 DB = "database_final.db"
 
+# store last code
 latest_code = "NO CODE"
 
 
@@ -20,15 +20,6 @@ def get_conn():
 def init_db():
     conn = get_conn()
     c = conn.cursor()
-
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT,
-            points INTEGER DEFAULT 0
-        )
-    """)
 
     c.execute("""
         CREATE TABLE IF NOT EXISTS codes (
@@ -45,34 +36,25 @@ def init_db():
 init_db()
 
 
-# ---------------- DEBUG ROUTES ----------------
-
-# 🔥 TEST ROUTE (VERY IMPORTANT)
-@app.route('/test')
-def test():
-    return "WORKING"
-
-
-# 🔥 SIMPLE CHECK ROUTE
-@app.route('/hello')
-def hello():
-    return "HELLO FROM SERVER"
-
-
-# ---------------- MAIN ROUTES ----------------
+# ---------------- ROUTES ----------------
 
 @app.route('/')
 def home():
-    return redirect('/dustbin')
+    return render_template('dustbin.html')
 
 
-# 🔥 DUSTBIN PAGE
 @app.route('/dustbin')
 def dustbin():
     return render_template('dustbin.html')
 
 
-# 🔥 GENERATE CODE
+# 🔥 GET LAST CODE (for page load)
+@app.route('/get_code')
+def get_code():
+    return latest_code
+
+
+# 🔥 GENERATE NEW CODE
 @app.route('/trigger_code')
 def trigger_code():
     global latest_code

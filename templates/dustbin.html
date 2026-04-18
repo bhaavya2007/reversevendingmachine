@@ -44,12 +44,6 @@
     button:hover {
       background: #00cc00;
     }
-
-    .status {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #aaa;
-    }
   </style>
 </head>
 
@@ -61,35 +55,29 @@
 
 <button onclick="generate()">Simulate Garbage Throw</button>
 
-<div class="status" id="status">Waiting...</div>
-
 <script>
-/* 🔥 IMPORTANT: HARDCODE YOUR DEPLOYED URL */
 const BASE = "https://reversevendingmachine.onrender.com";
 
+// load last code when page opens
+function loadCode(){
+  fetch(BASE + "/get_code")
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById("code").innerText = data;
+    });
+}
+
+// generate new code
 function generate(){
   fetch(BASE + "/trigger_code")
     .then(res => res.text())
     .then(data => {
-      console.log("SERVER RESPONSE:", data);
-
-      // ❌ if HTML is returned instead of code
-      if (data.includes("<!doctype") || data.includes("<html")) {
-        document.getElementById("code").innerText = "ERROR";
-        document.getElementById("status").innerText = "❌ Backend not hit";
-        return;
-      }
-
-      // ✅ correct response
       document.getElementById("code").innerText = data;
-      document.getElementById("status").innerText = "✅ Code generated";
-    })
-    .catch(err => {
-      console.log(err);
-      document.getElementById("code").innerText = "ERROR";
-      document.getElementById("status").innerText = "❌ Server error";
     });
 }
+
+// run on page load
+window.onload = loadCode;
 </script>
 
 </body>
